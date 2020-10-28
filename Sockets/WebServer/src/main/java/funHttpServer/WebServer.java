@@ -25,6 +25,7 @@ import java.util.Random;
 import java.util.Map;
 import java.util.LinkedHashMap;
 import java.nio.charset.Charset;
+import org.json.*;
 
 class WebServer {
   public static void main(String args[]) {
@@ -197,25 +198,36 @@ class WebServer {
           // This multiplies two numbers, there is NO error handling, so when
           // wrong data is given this just crashes
 
-          Map<String, String> query_pairs = new LinkedHashMap<String, String>();
-          // extract path parameters
-          query_pairs = splitQuery(request.replace("multiply?", ""));
+          try {
+            Map<String, String> query_pairs = new LinkedHashMap<String, String>();
+            // extract path parameters
+            query_pairs = splitQuery(request.replace("multiply?", ""));
 
-          // extract required fields from parameters
-          Integer num1 = Integer.parseInt(query_pairs.get("num1"));
-          Integer num2 = Integer.parseInt(query_pairs.get("num2"));
+            // extract required fields from parameters
+            Integer num1 = Integer.parseInt(query_pairs.get("num1"));
+            Integer num2 = Integer.parseInt(query_pairs.get("num2"));
 
-          // do math
-          Integer result = num1 * num2;
+            // do math
+            Integer result = num1 * num2;
 
-          // Generate response
-          builder.append("HTTP/1.1 200 OK\n");
-          builder.append("Content-Type: text/html; charset=utf-8\n");
-          builder.append("\n");
-          builder.append("Result is: " + result);
+            // Generate response
+            builder.append("HTTP/1.1 200 OK\n");
+            builder.append("Content-Type: text/html; charset=utf-8\n");
+            builder.append("\n");
+            builder.append("Result is: " + result);
 
-          // TODO: Include error handling here with a correct error code and
-          // a response that makes sense
+          } catch (StringIndexOutOfBoundsException ex) {
+            builder.append("HTTP/1.1 400 Bad Request\n");
+            builder.append("Content-Type: text/html; charset=utf-8\n");
+            builder.append("\n");
+            builder.append("No parameters specified.");
+
+          } catch (NumberFormatException ex) {
+            builder.append("HTTP/1.1 400 Bad Request\n");
+            builder.append("Content-Type: text/html; charset=utf-8\n");
+            builder.append("\n");
+            builder.append("Invalid numbers specified.");
+          }
 
         } else if (request.contains("github?")) {
           // pulls the query from the request and runs it with GitHub's REST API
@@ -226,19 +238,52 @@ class WebServer {
           // "Owner's repo is named RepoName. Example: find RepoName's contributors" translates to
           //     "/repos/OWNERNAME/REPONAME/contributors"
 
-          Map<String, String> query_pairs = new LinkedHashMap<String, String>();
-          query_pairs = splitQuery(request.replace("github?", ""));
-          String json = fetchURL("https://api.github.com/" + query_pairs.get("query"));
-          System.out.println(json);
+          try {
+            Map<String, String> query_pairs = new LinkedHashMap<String, String>();
+            query_pairs = splitQuery(request.replace("github?", ""));
+            String json = fetchURL("https://api.github.com/" + query_pairs.get("query"));
+            System.out.println(json);
 
-          builder.append("Check the todos mentioned in the Java source file");
-          // TODO: Parse the JSON returned by your fetch and create an appropriate
-          // response
-          // and list the owner name, owner id and name of the public repo on your webpage, e.g.
-          // amehlhase, 46384989 -> memoranda
-          // amehlhase, 46384989 -> ser316examples
-          // amehlhase, 46384989 -> test316
+            JSONArray repos = new JSONArray(json);
 
+            builder.append("HTTP/1.1 200 OK\n");
+            builder.append("Content-Type: text/html; charset=utf-8\n");
+            builder.append("\n");
+            builder.append("<html><head><title>Repos</title>\n");
+            builder.append("<link rel='stylesheet' href='https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css'>\n");
+            builder.append("</head><body>\n");
+            builder.append("<table class='table table-striped table-hover'>\n");
+            builder.append("<thead><tr><th>Owner</th><th>ID</th><th>Repo Name</th></tr></thead><tbody>\n");
+
+            for(int i = 0; i < repos.length(); i++) {
+              JSONObject repo = (JSONObject)repos.get(i);
+              int id = repo.getInt("id");
+              String name = repo.getString("name");
+              JSONObject owner = (JSONObject)repo.get("owner");
+              String ownerName = owner.getString("login");
+              builder.append("<tr><td>");
+              builder.append(ownerName);
+              builder.append("</td><td>");
+              builder.append(id);
+              builder.append("</td><td>");
+              builder.append(name);
+              builder.append("</td>\n");
+            }
+
+            builder.append(("</tbody></table></body></html>\n"));
+
+            // TODO: Parse the JSON returned by your fetch and create an appropriate
+            // response
+            // and list the owner name, owner id and name of the public repo on your webpage, e.g.
+            // amehlhase, 46384989 -> memoranda
+            // amehlhase, 46384989 -> ser316examples
+            // amehlhase, 46384989 -> test316
+          } catch (Exception ex) {
+            builder.append("HTTP/1.1 400 Bad Request\n");
+            builder.append("Content-Type: text/html; charset=utf-8\n");
+            builder.append("\n");
+            builder.append("An error has occurred.");
+          }
         } else {
           // if the request is not recognized at all
 

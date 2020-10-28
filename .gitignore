@@ -17,6 +17,9 @@ local.properties
 .classpath
 .project
 
+### IDEA ###
+.idea
+
 .DS_Store
 
 # External tool builders

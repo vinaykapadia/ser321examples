@@ -14,6 +14,14 @@ task SimpleWebServer(type: JavaExec) {
   standardInput = System.in
 }
 
+repositories {
+  mavenCentral()
+}
+
+dependencies {
+  implementation group: 'org.json', name: 'json', version: '20200518'
+}
+
 task FunWebServer(type: JavaExec) {
   group 'http'
   description 'Simple Http Demo'
